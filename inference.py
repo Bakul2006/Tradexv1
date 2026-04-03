@@ -18,6 +18,13 @@ TASK_NAME = os.getenv("MEVERSE_TASK") or os.getenv("TASK_NAME") or "full_market_
 BENCHMARK = "amm-market-surveillance"
 
 
+def env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
+
+
 def log_start(task: str, env: str, model: str) -> None:
     print(f"[START] task={task} env={env} model={model}", flush=True)
 
@@ -93,7 +100,9 @@ def select_action(observation) -> str:
 
 def main() -> None:
     task_name = TASK_NAME if TASK_NAME in list_task_names() else "full_market_surveillance"
-    env = MarketSurveillanceEnvironment(task=task_name)
+    demo_mode = env_flag("DEMO_MODE", False)
+    eval_mode = False if demo_mode else env_flag("EVAL_MODE", True)
+    env = MarketSurveillanceEnvironment(task=task_name, eval_mode=eval_mode, demo_mode=demo_mode)
     observation = env.reset(task=task_name)
     rewards: list[float] = []
     steps = 0

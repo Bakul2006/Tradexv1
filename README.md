@@ -126,6 +126,8 @@ python inference.py
 - `API_BASE_URL`
 - `MODEL_NAME`
 - `HF_TOKEN`
+- `EVAL_MODE`
+- `DEMO_MODE`
 
 Example PowerShell setup:
 
@@ -137,6 +139,12 @@ python inference.py
 ```
 
 If `HF_TOKEN` is not set or the model call fails, the script falls back to a deterministic local baseline.
+
+Mode behavior:
+
+- `EVAL_MODE=true` keeps runs reproducible for competition-style evaluation.
+- `DEMO_MODE=true` uses the episode seed to introduce small bounded observation variation for manual testing.
+- If `DEMO_MODE=true`, it takes precedence over `EVAL_MODE`.
 
 ## Validation And Graders
 

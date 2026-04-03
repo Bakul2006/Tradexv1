@@ -1,4 +1,4 @@
-"""Deterministic task definitions and graders for market surveillance."""
+"""Task definitions, demo variants, and graders for market surveillance."""
 
 from __future__ import annotations
 
@@ -120,6 +120,57 @@ def list_task_names() -> List[str]:
 
 def task_definition(task_name: str) -> TaskDefinition:
     return TASK_DEFINITIONS.get(task_name, TASK_DEFINITIONS["burst_detection"])
+
+
+def scenario_steps_for_task(task_name: str, rng, demo_mode: bool) -> List[ScenarioStep]:
+    """Return deterministic base steps or lightly perturbed demo variants."""
+
+    steps = task_definition(task_name).steps
+    if not demo_mode:
+        return list(steps)
+
+    variant = rng.randint(0, 2)
+    price_scale = [1.0, 1.003, 0.997][variant]
+    liquidity_scale = [1.0, 0.985, 1.015][variant]
+
+    demo_steps: List[ScenarioStep] = []
+    for step in steps:
+        price = step.current_amm_price * price_scale * (1.0 + rng.uniform(-0.003, 0.003))
+        liquidity = step.liquidity_snapshot * liquidity_scale * (1.0 + rng.uniform(-0.02, 0.02))
+        burst = min(1.0, max(0.0, step.burst_indicator + rng.uniform(-0.04, 0.04)))
+        pattern = min(1.0, max(0.0, step.pattern_indicator + rng.uniform(-0.04, 0.04)))
+        suspicious = min(1.0, max(0.0, step.suspiciousness_score + rng.uniform(-0.05, 0.05)))
+        manipulation = min(1.0, max(0.0, step.manipulation_score + rng.uniform(-0.05, 0.05)))
+        trades = [
+            round(max(0.0, value * (1.0 + rng.uniform(-0.06, 0.06))), 4)
+            for value in step.trades_in_window
+        ]
+        gaps = [
+            round(max(0.1, value * (1.0 + rng.uniform(-0.08, 0.08))), 4)
+            for value in step.recent_time_gaps
+        ]
+        impacts = [
+            round(min(1.0, max(0.0, value * (1.0 + rng.uniform(-0.08, 0.08)))), 4)
+            for value in step.recent_price_impacts
+        ]
+        demo_steps.append(
+            ScenarioStep(
+                current_amm_price=round(price, 4),
+                liquidity_snapshot=round(liquidity, 4),
+                trades_in_window=trades,
+                recent_time_gaps=gaps,
+                recent_price_impacts=impacts,
+                burst_indicator=round(burst, 4),
+                pattern_indicator=round(pattern, 4),
+                suspiciousness_score=round(suspicious, 4),
+                manipulation_score=round(manipulation, 4),
+                label=step.label,
+                severity=step.severity,
+                healthy_market_index=step.healthy_market_index,
+                note=f"{step.note} [demo variant {variant}]",
+            )
+        )
+    return demo_steps
 
 
 def compute_task_grade(task_name: str, actions: List[str]) -> Dict[str, float]:

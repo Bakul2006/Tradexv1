@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import random
+import os
 from typing import Any, Dict, List, Optional
 from uuid import uuid4
 
@@ -11,13 +13,20 @@ from openenv.core.env_server.types import State
 try:
     from ..baseline_policy import choose_surveillance_action
     from ..models import SurveillanceAction, SurveillanceObservation
-    from ..tasks import compute_task_grade, list_task_names, task_definition
+    from ..tasks import compute_task_grade, list_task_names, scenario_steps_for_task, task_definition
 except ImportError:
     from baseline_policy import choose_surveillance_action
     from models import SurveillanceAction, SurveillanceObservation
-    from tasks import compute_task_grade, list_task_names, task_definition
+    from tasks import compute_task_grade, list_task_names, scenario_steps_for_task, task_definition
 
 VALID_ACTIONS = {"ALLOW", "FLAG", "BLOCK", "MONITOR"}
+
+
+def _env_flag(name: str, default: bool) -> bool:
+    value = os.getenv(name)
+    if value is None:
+        return default
+    return value.strip().lower() in {"1", "true", "yes", "on"}
 
 
 class MarketSurveillanceEnvironment(Environment[SurveillanceAction, SurveillanceObservation, State]):
@@ -25,11 +34,33 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
 
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
 
-    def __init__(self, task: str = "burst_detection", transform=None, rubric=None):
+    def __init__(
+        self,
+        task: str = "burst_detection",
+        transform=None,
+        rubric=None,
+        eval_mode: Optional[bool] = None,
+        demo_mode: Optional[bool] = None,
+    ):
         super().__init__(transform=transform, rubric=rubric)
         self._task_name = task if task in list_task_names() else "burst_detection"
         self._state = State(episode_id=str(uuid4()), step_count=0)
+        if eval_mode is None:
+            eval_mode = _env_flag("EVAL_MODE", True)
+        if demo_mode is None:
+            demo_mode = _env_flag("DEMO_MODE", False)
+        if demo_mode:
+            eval_mode = False
+        self._eval_mode = bool(eval_mode)
+        self._demo_mode = bool(demo_mode)
         self._task = task_definition(self._task_name)
+        self._seed = random.randint(0, 100000)
+        self._rng = random.Random(self._seed)
+        self._scenario_steps = scenario_steps_for_task(
+            self._task_name,
+            self._rng,
+            demo_mode=self._demo_mode,
+        )
         self._step_num = 0
         self._done = False
         self._last_reward = 0.0
@@ -42,6 +73,13 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
         if task in list_task_names():
             self._task_name = task
         self._task = task_definition(self._task_name)
+        self._seed = seed if seed is not None else (42 if self._eval_mode else random.randint(0, 100000))
+        self._rng = random.Random(self._seed)
+        self._scenario_steps = scenario_steps_for_task(
+            self._task_name,
+            self._rng,
+            demo_mode=self._demo_mode,
+        )
         self._state = State(episode_id=episode_id or str(uuid4()), step_count=0)
         self._step_num = 0
         self._done = False
@@ -62,7 +100,7 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
         else:
             self._last_action_error = None
 
-        step_data = self._task.steps[self._step_num]
+        step_data = self._scenario_steps[self._step_num]
         reward = self._reward_for_action(action_type, step_data)
 
         self._actions.append(action_type)
@@ -94,23 +132,23 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
         health = step_data.healthy_market_index
         if step_data.label == "suspicious":
             if action_type == "BLOCK":
-                return round(1.0 + 0.6 * severity, 4)
+                return round(min(1.0, 0.88 + 0.12 * severity), 4)
             if action_type == "FLAG":
-                return round(0.75 + 0.45 * severity, 4)
+                return round(min(1.0, 0.68 + 0.18 * severity), 4)
             if action_type == "MONITOR":
-                return round(0.35 + 0.30 * severity, 4)
-            return round(-1.0 - 0.7 * severity, 4)
+                return round(min(1.0, 0.42 + 0.16 * severity), 4)
+            return round(max(0.0, 0.06 * (1.0 - severity)), 4)
         if action_type == "ALLOW":
-            return round(0.65 + 0.20 * health, 4)
+            return round(min(1.0, 0.82 + 0.10 * health), 4)
         if action_type == "MONITOR":
-            return round(0.10 + 0.10 * health - 0.20 * (1.0 - health), 4)
+            return round(min(1.0, 0.56 + 0.10 * health), 4)
         if action_type == "FLAG":
-            return round(-0.35 - 0.30 * health, 4)
-        return round(-0.80 - 0.45 * health, 4)
+            return round(max(0.0, 0.18 - 0.05 * health), 4)
+        return round(max(0.0, 0.05 - 0.03 * health), 4)
 
     def _current_step_data(self):
         index = min(self._step_num, len(self._task.steps) - 1)
-        return self._task.steps[index]
+        return self._scenario_steps[index]
 
     def _build_observation(self, reward: float, done: bool) -> SurveillanceObservation:
         step_data = self._current_step_data()
@@ -138,12 +176,15 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
             suspiciousness_score=step_data.suspiciousness_score,
             manipulation_score=step_data.manipulation_score,
             step_num=self._step_num,
-            max_steps=len(self._task.steps),
+            max_steps=len(self._scenario_steps),
             task_name=self._task_name,
             done=done,
             reward=reward,
             metadata={
                 "episode_id": self._state.episode_id,
+                "seed": self._seed,
+                "eval_mode": self._eval_mode,
+                "demo_mode": self._demo_mode,
                 "available_actions": sorted(VALID_ACTIONS),
                 "available_tasks": list_task_names(),
                 "last_action_error": self._last_action_error,
