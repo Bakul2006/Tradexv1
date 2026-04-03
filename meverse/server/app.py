@@ -19,7 +19,7 @@ except Exception as e:
 try:
     from ..models import MeverseAction, MeverseObservation
     from .meverse_environment import MeverseEnvironment
-except ModuleNotFoundError:
+except (ModuleNotFoundError, ImportError, ValueError):
     from models import MeverseAction, MeverseObservation
     from server.meverse_environment import MeverseEnvironment
 

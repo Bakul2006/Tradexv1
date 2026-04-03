@@ -222,7 +222,15 @@ async def main() -> None:
             action_type = action_dict.get("action_type", "hold")
             params = action_dict.get("params", {})
 
-            result = await env.step(MeverseAction(action_type=action_type, params=params))
+            try:
+                action_obj = MeverseAction(action_type=action_type, params=params)
+            except Exception as exc:
+                print(f"[DEBUG] Invalid action '{action_type}' from LLM, falling back to 'hold': {exc}", file=sys.stderr, flush=True)
+                action_type = "hold"
+                params = {}
+                action_obj = MeverseAction(action_type=action_type, params=params)
+
+            result = await env.step(action_obj)
             obs = result.observation
 
             reward = result.reward or 0.0
