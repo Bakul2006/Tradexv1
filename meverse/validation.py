@@ -25,7 +25,8 @@ def run_validation_suite() -> Dict[str, Dict[str, float]]:
     for task_name in list_task_names():
         grade = run_task(task_name)
         score = grade["score"]
-        print(f"{task_name}: score={score:.4f}")
+        steps = grade.get("steps_run", "?")
+        print(f"{task_name}: score={score:.4f} steps={steps}")
         assert 0.0 <= score <= 1.0, f"Score out of range for {task_name}: {score}"
         results[task_name] = grade
     return results

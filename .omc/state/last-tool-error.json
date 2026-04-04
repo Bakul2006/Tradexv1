@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"pkill -f \\\"python app.py\\\" 2>/dev/null; echo \\\"done\\\"\",\"description\":\"Kill background server\"}",
+  "error": "Exit code 144",
+  "timestamp": "2026-04-04T03:13:17.203Z",
+  "retry_count": 1
+}

@@ -1,4 +1,4 @@
-"""Deterministic OpenEnv environment for AMM market surveillance."""
+"""Dynamic OpenEnv environment for AMM market surveillance."""
 
 from __future__ import annotations
 
@@ -11,13 +11,29 @@ from openenv.core.env_server.interfaces import Environment
 from openenv.core.env_server.types import State
 
 try:
+    from ..amm import AMMState, apply_action_effects
     from ..baseline_policy import choose_surveillance_action
     from ..models import SurveillanceAction, SurveillanceObservation
-    from ..tasks import compute_task_grade, list_task_names, scenario_steps_for_task, task_definition
+    from ..tasks import (
+        compute_task_grade,
+        create_amm_state,
+        generate_initial_step,
+        generate_next_step,
+        list_task_names,
+        task_definition,
+    )
 except ImportError:
+    from amm import AMMState, apply_action_effects
     from baseline_policy import choose_surveillance_action
     from models import SurveillanceAction, SurveillanceObservation
-    from tasks import compute_task_grade, list_task_names, scenario_steps_for_task, task_definition
+    from tasks import (
+        compute_task_grade,
+        create_amm_state,
+        generate_initial_step,
+        generate_next_step,
+        list_task_names,
+        task_definition,
+    )
 
 VALID_ACTIONS = {"ALLOW", "FLAG", "BLOCK", "MONITOR"}
 
@@ -30,7 +46,7 @@ def _env_flag(name: str, default: bool) -> bool:
 
 
 class MarketSurveillanceEnvironment(Environment[SurveillanceAction, SurveillanceObservation, State]):
-    """AMM-style market simulation focused on bot-aware surveillance decisions."""
+    """AMM-style market simulation with dynamic state transitions."""
 
     SUPPORTS_CONCURRENT_SESSIONS: bool = True
 
@@ -56,16 +72,14 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
         self._task = task_definition(self._task_name)
         self._seed = random.randint(0, 100000)
         self._rng = random.Random(self._seed)
-        self._scenario_steps = scenario_steps_for_task(
-            self._task_name,
-            self._rng,
-            demo_mode=self._demo_mode,
-        )
+        self._amm = create_amm_state(self._task_name)
+        self._current_step_data = generate_initial_step(self._amm, self._rng, self._task.profile)
         self._step_num = 0
         self._done = False
         self._last_reward = 0.0
         self._last_action_error: Optional[str] = None
         self._actions: List[str] = []
+        self._labels: List[str] = []
         self._rewards: List[float] = []
 
     def reset(self, seed: Optional[int] = None, episode_id: Optional[str] = None, **kwargs: Any) -> SurveillanceObservation:
@@ -75,17 +89,15 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
         self._task = task_definition(self._task_name)
         self._seed = seed if seed is not None else (42 if self._eval_mode else random.randint(0, 100000))
         self._rng = random.Random(self._seed)
-        self._scenario_steps = scenario_steps_for_task(
-            self._task_name,
-            self._rng,
-            demo_mode=self._demo_mode,
-        )
+        self._amm = create_amm_state(self._task_name)
+        self._current_step_data = generate_initial_step(self._amm, self._rng, self._task.profile)
         self._state = State(episode_id=episode_id or str(uuid4()), step_count=0)
         self._step_num = 0
         self._done = False
         self._last_reward = 0.0
         self._last_action_error = None
         self._actions = []
+        self._labels = []
         self._rewards = []
         return self._build_observation(reward=0.0, done=False)
 
@@ -100,20 +112,29 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
         else:
             self._last_action_error = None
 
-        step_data = self._scenario_steps[self._step_num]
+        step_data = self._current_step_data
         reward = self._reward_for_action(action_type, step_data)
 
         self._actions.append(action_type)
+        self._labels.append(step_data.label)
         self._rewards.append(reward)
         self._last_reward = reward
+
+        # Dynamic state transition: action affects AMM state
+        apply_action_effects(self._amm, action_type, step_data.label == "suspicious")
+
         self._step_num += 1
         self._state.step_count = self._step_num
-        self._done = self._step_num >= len(self._task.steps)
+        self._done = self._step_num >= self._task.num_steps
+
+        # Generate next step from updated AMM state
+        if not self._done:
+            self._current_step_data = generate_next_step(self._amm, self._rng, self._task.profile)
 
         return self._build_observation(reward=reward, done=self._done)
 
     def grade(self) -> Dict[str, Any]:
-        grade = compute_task_grade(self._task_name, self._actions)
+        grade = compute_task_grade(self._task_name, self._actions, self._labels)
         return {
             "task": self._task_name,
             "title": self._task.title,
@@ -146,12 +167,8 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
             return round(max(0.0, 0.18 - 0.05 * health), 4)
         return round(max(0.0, 0.05 - 0.03 * health), 4)
 
-    def _current_step_data(self):
-        index = min(self._step_num, len(self._task.steps) - 1)
-        return self._scenario_steps[index]
-
     def _build_observation(self, reward: float, done: bool) -> SurveillanceObservation:
-        step_data = self._current_step_data()
+        step_data = self._current_step_data
         trade_count = sum(1 for value in step_data.trades_in_window if value > 0)
         avg_trade_size = sum(step_data.trades_in_window) / max(1, trade_count)
         max_trade_size = max(step_data.trades_in_window) if step_data.trades_in_window else 0.0
@@ -176,7 +193,7 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
             suspiciousness_score=step_data.suspiciousness_score,
             manipulation_score=step_data.manipulation_score,
             step_num=self._step_num,
-            max_steps=len(self._scenario_steps),
+            max_steps=self._task.num_steps,
             task_name=self._task_name,
             done=done,
             reward=reward,
@@ -189,6 +206,9 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
                 "available_tasks": list_task_names(),
                 "last_action_error": self._last_action_error,
                 "scenario_note": step_data.note,
+                "amm_price": round(self._amm.price, 4),
+                "amm_liquidity": round(self._amm.liquidity, 4),
+                "bot_confidence": round(self._amm.bot_confidence, 4),
             },
         )
         return self._apply_transform(observation)
