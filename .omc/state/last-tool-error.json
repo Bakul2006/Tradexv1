@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"pkill -f \\\"python dashboard.py\\\" 2>/dev/null; true\",\"description\":\"Kill any running dashboard\"}",
+  "error": "Exit code 144",
+  "timestamp": "2026-04-05T12:22:49.575Z",
+  "retry_count": 2
+}

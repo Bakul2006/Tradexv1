@@ -1070,6 +1070,27 @@ input[type="number"] {
 .gr-dropdown {
     background: #1a1d27 !important;
 }
+
+/* File upload drop zone */
+#telem-upload .drop-container,
+#telem-upload .upload-container,
+#telem-upload [data-testid="droparea"],
+#telem-upload .file-upload,
+#telem-upload .center {
+    border: 2px dashed #3a3d4a !important;
+    border-radius: 12px !important;
+    background: rgba(26, 29, 39, 0.6) !important;
+    transition: border-color 0.3s ease, background 0.3s ease;
+    min-height: 160px !important;
+}
+#telem-upload .drop-container:hover,
+#telem-upload .upload-container:hover,
+#telem-upload [data-testid="droparea"]:hover,
+#telem-upload .file-upload:hover,
+#telem-upload .center:hover {
+    border-color: #00c9a7 !important;
+    background: rgba(0, 201, 167, 0.05) !important;
+}
 """
 
 
@@ -1215,7 +1236,7 @@ def build_app() -> gr.Blocks:
             # =============== TAB 3: Telemetry Viewer ===============
             with gr.Tab("Telemetry Viewer"):
                 gr.Markdown("#### Upload a JSONL telemetry file to replay and visualize")
-                telem_file = gr.File(label="Upload .jsonl", file_types=[".jsonl"], file_count="single", type="filepath")
+                telem_file = gr.File(label="Upload .jsonl", file_types=[".jsonl"], file_count="single", type="filepath", elem_id="telem-upload")
                 telem_chart = gr.Plot(label="Telemetry Rewards")
                 telem_summary = gr.Markdown()
 
