@@ -95,14 +95,20 @@
     },
     {
       "path": "Dockerfile",
-      "accessCount": 8,
-      "lastAccessed": 1775376289573,
+      "accessCount": 11,
+      "lastAccessed": 1775376946985,
       "type": "file"
     },
     {
       "path": "app.py",
       "accessCount": 8,
       "lastAccessed": 1775376417156,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 6,
+      "lastAccessed": 1775376565664,
       "type": "file"
     },
     {
@@ -115,12 +121,6 @@
       "path": "meverse/amm.py",
       "accessCount": 5,
       "lastAccessed": 1775348101602,
-      "type": "file"
-    },
-    {
-      "path": "README.md",
-      "accessCount": 5,
-      "lastAccessed": 1775376477625,
       "type": "file"
     },
     {
@@ -202,6 +202,12 @@
       "type": "file"
     },
     {
+      "path": ".env",
+      "accessCount": 2,
+      "lastAccessed": 1775377255359,
+      "type": "file"
+    },
+    {
       "path": "context/checklist.txt",
       "accessCount": 1,
       "lastAccessed": 1775122369363,
@@ -259,6 +265,18 @@
       "path": "meverse/pyproject.toml",
       "accessCount": 1,
       "lastAccessed": 1775376255421,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 1,
+      "lastAccessed": 1775377246430,
+      "type": "directory"
+    },
+    {
+      "path": ".env.example",
+      "accessCount": 1,
+      "lastAccessed": 1775377251002,
       "type": "file"
     }
   ],
