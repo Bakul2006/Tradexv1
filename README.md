@@ -114,13 +114,17 @@ The final episode grade is weighted as:
 
 The repo includes three deterministic tasks with distinct difficulty levels:
 
-1. `burst_detection`
-2. `pattern_manipulation_detection`
-3. `full_market_surveillance`
+### `burst_detection` (Easy)
 
-- `burst_detection`: learn to catch abrupt high-frequency bursts.
-- `pattern_manipulation_detection`: learn repeated timing and size signatures.
-- `full_market_surveillance`: balance burst detection, pattern detection, and false-positive control in mixed traffic.
+The agent deals with sudden, acute spikes — a bot hammering the pool with a high volume of trades in a short window. The signal is primarily `burst_indicator` going high. The activity is spatially concentrated in time. A simple threshold rule can mostly catch it.
+
+### `pattern_manipulation_detection` (Medium)
+
+The agent faces sustained, rhythmic coordination — trades that aren't necessarily bursty but repeat at suspicious timing intervals or with suspicious size signatures. The signal is `pattern_indicator` combined with `time_gap_min` being suspiciously regular. A bot can have low burst but high pattern. This is harder because the activity individually looks benign.
+
+### `full_market_surveillance` (Hard)
+
+Both threats at once, mixed with normal traffic. The agent must simultaneously avoid false positives on organic noise and catch both burst-type and pattern-type attacks. It runs 60 steps (vs 50 for the easier tasks), and `initial_bot_confidence` is 0.30 (between the two single-threat tasks).
 
 ## Baseline Policies
 

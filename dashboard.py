@@ -1248,9 +1248,10 @@ def build_app() -> gr.Blocks:
 **TradeX** is a bot-aware market surveillance benchmark built on a simulated AMM (Automated Market Maker) environment.
 
 **Tasks:**
-- **Burst Detection** (Easy) — Identify sudden bursts of aggressive activity
-- **Pattern Manipulation Detection** (Medium) — Detect repeated timing and size signatures
-- **Full Market Surveillance** (Hard) — Balance all detection types with false-positive control
+
+- **Burst Detection** (Easy) — The agent deals with sudden, acute spikes — a bot hammering the pool with a high volume of trades in a short window. The signal is primarily `burst_indicator` going high. The activity is spatially concentrated in time, and a simple threshold rule can mostly catch it.
+- **Pattern Manipulation Detection** (Medium) — The agent faces sustained, rhythmic coordination — trades that aren't necessarily bursty but repeat at suspicious timing intervals or with suspicious size signatures. The signal is `pattern_indicator` combined with `time_gap_min` being suspiciously regular. A bot can have low burst but high pattern. This is harder because the activity individually looks benign.
+- **Full Market Surveillance** (Hard) — Both threats at once, mixed with normal traffic. The agent must simultaneously avoid false positives on organic noise and catch both burst-type and pattern-type attacks. It runs 60 steps (vs 50), and `initial_bot_confidence` is 0.30 (between the two single-threat tasks).
 
 **Actions:**
 - `ALLOW` — Normal activity, let it through
