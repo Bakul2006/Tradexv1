@@ -83,14 +83,20 @@
   "hotPaths": [
     {
       "path": "dashboard.py",
-      "accessCount": 25,
-      "lastAccessed": 1775375835963,
+      "accessCount": 26,
+      "lastAccessed": 1775376248969,
       "type": "file"
     },
     {
       "path": "inference.py",
       "accessCount": 21,
       "lastAccessed": 1775348089010,
+      "type": "file"
+    },
+    {
+      "path": "Dockerfile",
+      "accessCount": 8,
+      "lastAccessed": 1775376289573,
       "type": "file"
     },
     {
@@ -109,12 +115,6 @@
       "path": "meverse/amm.py",
       "accessCount": 5,
       "lastAccessed": 1775348101602,
-      "type": "file"
-    },
-    {
-      "path": "Dockerfile",
-      "accessCount": 5,
-      "lastAccessed": 1775376116457,
       "type": "file"
     },
     {
@@ -137,8 +137,8 @@
     },
     {
       "path": "meverse/server/app.py",
-      "accessCount": 3,
-      "lastAccessed": 1775268140953,
+      "accessCount": 4,
+      "lastAccessed": 1775376252300,
       "type": "file"
     },
     {
@@ -196,6 +196,12 @@
       "type": "file"
     },
     {
+      "path": "requirements.txt",
+      "accessCount": 2,
+      "lastAccessed": 1775376255578,
+      "type": "file"
+    },
+    {
       "path": "context/checklist.txt",
       "accessCount": 1,
       "lastAccessed": 1775122369363,
@@ -250,9 +256,9 @@
       "type": "file"
     },
     {
-      "path": "requirements.txt",
+      "path": "meverse/pyproject.toml",
       "accessCount": 1,
-      "lastAccessed": 1775375705726,
+      "lastAccessed": 1775376255421,
       "type": "file"
     }
   ],

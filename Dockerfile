@@ -31,6 +31,10 @@ RUN --mount=type=cache,target=/root/.cache/uv \
         uv sync --no-editable; \
     fi
 
+# Install root-level dependencies (gradio, plotly, numpy) needed by dashboard/app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv pip install -r /app/env/requirements.txt
+
 FROM ${BASE_IMAGE}
 
 WORKDIR /app
