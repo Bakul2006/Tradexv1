@@ -21,6 +21,8 @@ This repository is intended to be evaluated in deterministic competition mode.
 - Run with `EVAL_MODE=true` and `DEMO_MODE=false` so the environment uses a fixed seed and produces reproducible scores.
 - Treat the LLM-driven policy as the official baseline path.
 - Treat the heuristic policy only as a crash fallback and internal testing aid, not as the intended submitted baseline.
+- Treat [dashboard.py](/home/casp1an/Code/TradeX1/dashboard.py) as an optional visualization and debugging UI, not as the official judging entrypoint.
+- To inspect behavior locally, run `python dashboard.py` from the repo root and open the Gradio UI on port `7860`. The launch config enables `share=True`, so Gradio will also print a public share link when tunneling is available.
 
 This matches the project’s intended hackathon evaluation flow: a single inference entrypoint, deterministic task execution, and programmatic grading across all tasks.
 
@@ -68,6 +70,13 @@ Only these actions are valid:
 
 Legacy trading and liquidity-management actions have been removed from the environment logic.
 
+Action meaning:
+
+- `ALLOW`: treat the activity as normal and let it pass.
+- `MONITOR`: keep the activity under closer watch without escalating to a hard intervention.
+- `FLAG`: mark the activity as suspicious for review.
+- `BLOCK`: stop the activity because it appears strongly suspicious or harmful.
+
 ## Reward Logic
 
 Reward combines:
@@ -78,6 +87,19 @@ Reward combines:
 - false negative penalties
 - severity bonuses on harmful suspicious activity
 - overblocking penalties to protect healthy market behavior
+
+At a high level:
+
+- on suspicious activity, `BLOCK` scores best, `FLAG` is strong, `MONITOR` gets partial credit, and `ALLOW` is usually a miss
+- on normal activity, `ALLOW` scores best, `MONITOR` is a softer fallback, and `FLAG` or `BLOCK` hurt false-positive and market-health metrics
+
+The final episode grade is weighted as:
+
+- `Detection`: 50%
+- `False Positive`: 20%
+- `False Negative`: 15%
+- `Health`: 10%
+- `Overblocking`: 5%
 
 ## Tasks
 
@@ -114,6 +136,13 @@ The heuristic policy follows simple surveillance rules:
 - elif suspiciousness is moderate, `MONITOR`
 - else `ALLOW`
 
+The dashboard also exposes two simple comparison baselines:
+
+- `Always Allow`: ignores the signals and returns `ALLOW` on every step.
+- `Random`: ignores the signals and picks randomly from `ALLOW`, `FLAG`, `BLOCK`, and `MONITOR` on each step.
+
+These are useful as sanity-check baselines for visualization, but they are not official submitted policies.
+
 ## Running The Environment
 
 Serve the OpenEnv app from the repo root:
@@ -142,6 +171,33 @@ Optional task selection:
 $env:MEVERSE_TASK="full_market_surveillance"
 python inference.py
 ```
+
+## Running The Dashboard
+
+The interactive dashboard lives at [dashboard.py](/home/casp1an/Code/TradeX1/dashboard.py). Run it from the repo root so the local `meverse` package imports resolve correctly.
+
+If your environment does not already have the UI dependencies installed, install them first:
+
+```bash
+pip install gradio plotly numpy
+```
+
+Then launch the dashboard:
+
+```bash
+python dashboard.py
+```
+
+After startup:
+
+- open `http://127.0.0.1:7860` for the local UI
+- check the terminal output for the Gradio public share URL because the app launches with `share=True`
+
+The dashboard provides:
+
+- `Episode Runner`: run one episode with `Heuristic`, `Always Allow`, or `Random`
+- `Policy Comparison`: compare those three baselines on the same seeded episode
+- `Telemetry Viewer`: upload a JSONL telemetry file and replay rewards visually
 
 ## Required Environment Variables
 
