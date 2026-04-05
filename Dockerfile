@@ -33,7 +33,8 @@ RUN --mount=type=cache,target=/root/.cache/uv \
 
 # Install root-level dependencies (gradio, plotly, numpy) needed by dashboard/app
 RUN --mount=type=cache,target=/root/.cache/uv \
-    uv pip install -r /app/env/requirements.txt
+    VIRTUAL_ENV=/app/env/meverse/.venv \
+    uv pip install --python /app/env/meverse/.venv/bin/python -r /app/env/requirements.txt
 
 FROM ${BASE_IMAGE}
 
