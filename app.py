@@ -11,6 +11,9 @@ from meverse.server.app import main as openenv_main
 from meverse.models import SurveillanceAction, SurveillanceObservation
 from meverse.server.meverse_environment import MarketSurveillanceEnvironment
 
+SPACE_THEME = None
+SPACE_CSS = None
+
 
 def _running_in_hf_space() -> bool:
     return any(os.getenv(name) for name in ("SPACE_ID", "SPACE_AUTHOR_NAME", "HF_SPACE_ID"))
@@ -23,8 +26,13 @@ def _app_mode() -> str:
 
 
 def _build_space_app() -> gr.Blocks:
+    global SPACE_THEME, SPACE_CSS
+
+    from dashboard import CUSTOM_CSS as DASHBOARD_CSS
     from dashboard import build_app as build_dashboard_app
     from openenv.core.env_server.web_interface import (
+        OPENENV_GRADIO_CSS,
+        OPENENV_GRADIO_THEME,
         WebInterfaceManager,
         _extract_action_fields,
         _is_chat_env,
@@ -60,12 +68,37 @@ def _build_space_app() -> gr.Blocks:
         quick_start_md=quick_start_md,
     )
     dashboard_blocks = build_dashboard_app()
-
-    return gr.TabbedInterface(
-        [playground_blocks, dashboard_blocks],
-        tab_names=["Playground", "Dashboard"],
-        title=title,
+    SPACE_CSS = "\n".join(
+        [
+            OPENENV_GRADIO_CSS,
+            """
+            .space-shell { padding: 0 !important; }
+            .space-tabs > .tab-nav {
+                background: transparent !important;
+                border-bottom: 1px solid rgba(139, 148, 158, 0.25) !important;
+                margin-bottom: 8px !important;
+            }
+            .space-tabs > .tab-nav button {
+                font-weight: 600 !important;
+            }
+            """,
+            DASHBOARD_CSS,
+        ]
     )
+    SPACE_THEME = OPENENV_GRADIO_THEME
+
+    with gr.Blocks(
+        title=title,
+        fill_width=True,
+        elem_classes=["space-shell"],
+    ) as app:
+        with gr.Tabs(elem_classes=["space-tabs"]):
+            with gr.Tab("Playground"):
+                playground_blocks.render()
+            with gr.Tab("Dashboard"):
+                dashboard_blocks.render()
+
+    return app
 
 
 if _app_mode() == "space":
@@ -77,6 +110,8 @@ if _app_mode() == "space":
             server_name="0.0.0.0",
             server_port=port,
             share=False,
+            theme=SPACE_THEME,
+            css=SPACE_CSS,
         )
 else:
     app = openenv_app
