@@ -42,6 +42,8 @@ WORKDIR /app
 
 COPY --from=builder /app/env/meverse/.venv /app/.venv
 COPY --from=builder /app/env /app/env
+# OpenEnv web interface looks for /app/README.md for the Playground readme dropdown
+COPY --from=builder /app/env/README.md /app/README.md
 
 ENV PATH="/app/.venv/bin:$PATH"
 ENV PYTHONPATH="/app/env:/app/env/meverse:$PYTHONPATH"

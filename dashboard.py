@@ -66,6 +66,7 @@ PLOTLY_LAYOUT = dict(
     margin=dict(l=50, r=30, t=40, b=40),
     xaxis=dict(gridcolor="#2a2d3a", zerolinecolor="#2a2d3a"),
     yaxis=dict(gridcolor="#2a2d3a", zerolinecolor="#2a2d3a"),
+    transition=dict(duration=600, easing="cubic-in-out"),
 )
 
 # ---------------------------------------------------------------------------
@@ -278,6 +279,30 @@ def _make_reward_chart(state: EpisodeState) -> go.Figure:
         height=340,
         bargap=0.15,
     )
+
+    # Animate bars growing from zero
+    zero_rewards = [0] * len(state.rewards)
+    zero_cumulative = [0] * len(cumulative)
+    fig.update_traces(selector=dict(type="bar"), marker_opacity=0.9)
+    fig.frames = [
+        go.Frame(data=[
+            go.Bar(x=steps, y=zero_rewards, marker_color=colors),
+            go.Scatter(x=steps, y=zero_cumulative, mode="lines",
+                       line=dict(color=COLORS["accent"], width=2, dash="dot"), yaxis="y2"),
+        ], name="start"),
+        go.Frame(data=[
+            go.Bar(x=steps, y=state.rewards, marker_color=colors),
+            go.Scatter(x=steps, y=cumulative, mode="lines",
+                       line=dict(color=COLORS["accent"], width=2, dash="dot"), yaxis="y2"),
+        ], name="end"),
+    ]
+    fig.layout.updatemenus = [dict(
+        type="buttons", showactive=False,
+        buttons=[dict(label="", method="animate",
+                      args=[None, dict(frame=dict(duration=800, redraw=True),
+                                       fromcurrent=True, transition=dict(duration=600, easing="cubic-in-out"))])],
+        visible=False,
+    )]
     return fig
 
 
@@ -316,6 +341,25 @@ def _make_action_dist_chart(state: EpisodeState) -> go.Figure:
         legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
         height=340,
     )
+
+    # Animate stacked bars growing from zero
+    actions = ["ALLOW", "FLAG", "BLOCK", "MONITOR"]
+    fig.frames = [
+        go.Frame(data=[
+            go.Bar(x=actions, y=[0]*4, marker_color=COLORS["success"]),
+            go.Bar(x=actions, y=[0]*4, marker_color=COLORS["danger"]),
+        ], name="start"),
+        go.Frame(data=[
+            go.Bar(x=actions, y=normal_counts, marker_color=COLORS["success"]),
+            go.Bar(x=actions, y=suspicious_counts, marker_color=COLORS["danger"]),
+        ], name="end"),
+    ]
+    fig.layout.updatemenus = [dict(
+        type="buttons", showactive=False, visible=False,
+        buttons=[dict(label="", method="animate",
+                      args=[None, dict(frame=dict(duration=800, redraw=True),
+                                       fromcurrent=True, transition=dict(duration=600, easing="cubic-in-out"))])],
+    )]
     return fig
 
 
@@ -344,6 +388,25 @@ def _make_signal_heatmap(state: EpisodeState) -> go.Figure:
         xaxis_title="Step",
         height=300,
     )
+
+    # Animate heatmap fading in from zero
+    zero_matrix = np.zeros_like(matrix)
+    fig.frames = [
+        go.Frame(data=[go.Heatmap(z=zero_matrix, x=steps, y=SIGNAL_NAMES,
+                                  colorscale=[[0.0, "#0f1117"], [0.25, "#0a3d5c"],
+                                              [0.5, "#0088cc"], [0.75, "#ffa502"], [1.0, "#ff4757"]])],
+                 name="start"),
+        go.Frame(data=[go.Heatmap(z=matrix, x=steps, y=SIGNAL_NAMES,
+                                  colorscale=[[0.0, "#0f1117"], [0.25, "#0a3d5c"],
+                                              [0.5, "#0088cc"], [0.75, "#ffa502"], [1.0, "#ff4757"]])],
+                 name="end"),
+    ]
+    fig.layout.updatemenus = [dict(
+        type="buttons", showactive=False, visible=False,
+        buttons=[dict(label="", method="animate",
+                      args=[None, dict(frame=dict(duration=1000, redraw=True),
+                                       fromcurrent=True, transition=dict(duration=800, easing="cubic-in-out"))])],
+    )]
     return fig
 
 
@@ -439,6 +502,7 @@ def _make_amm_chart(state: EpisodeState) -> go.Figure:
             font=dict(size=10, color="#e4e6eb"),
         ),
         height=540,
+        transition=dict(duration=600, easing="cubic-in-out"),
     )
 
     # Style subplot titles — bold white on dark background
@@ -494,7 +558,27 @@ def _make_grade_chart(grade: dict) -> go.Figure:
         margin=dict(l=60, r=60, t=50, b=40),
         height=360,
         showlegend=False,
+        transition=dict(duration=600, easing="cubic-in-out"),
     )
+
+    # Animate radar expanding from center
+    zero_vals = [0] * len(values_closed)
+    fig.frames = [
+        go.Frame(data=[go.Scatterpolar(r=zero_vals, theta=categories_closed,
+                                       fill="toself", fillcolor="rgba(0,200,167,0.15)",
+                                       line=dict(color=COLORS["accent"], width=2))],
+                 name="start"),
+        go.Frame(data=[go.Scatterpolar(r=values_closed, theta=categories_closed,
+                                       fill="toself", fillcolor="rgba(0,200,167,0.15)",
+                                       line=dict(color=COLORS["accent"], width=2))],
+                 name="end"),
+    ]
+    fig.layout.updatemenus = [dict(
+        type="buttons", showactive=False, visible=False,
+        buttons=[dict(label="", method="animate",
+                      args=[None, dict(frame=dict(duration=900, redraw=True),
+                                       fromcurrent=True, transition=dict(duration=700, easing="cubic-in-out"))])],
+    )]
     return fig
 
 
@@ -534,6 +618,27 @@ def _make_confusion_chart(state: EpisodeState) -> go.Figure:
         yaxis_title="True Label",
         height=260,
     )
+
+    # Animate confusion matrix fading in
+    zero_matrix = [[0]*4, [0]*4]
+    fig.frames = [
+        go.Frame(data=[go.Heatmap(z=zero_matrix, x=actions_order, y=labels_order,
+                                  colorscale=[[0.0, "#1a1d27"], [0.5, "#0088cc"], [1.0, "#00c9a7"]],
+                                  text=zero_matrix, texttemplate="%{text}",
+                                  textfont=dict(size=16, color="white"), showscale=False)],
+                 name="start"),
+        go.Frame(data=[go.Heatmap(z=matrix, x=actions_order, y=labels_order,
+                                  colorscale=[[0.0, "#1a1d27"], [0.5, "#0088cc"], [1.0, "#00c9a7"]],
+                                  text=matrix, texttemplate="%{text}",
+                                  textfont=dict(size=16, color="white"), showscale=False)],
+                 name="end"),
+    ]
+    fig.layout.updatemenus = [dict(
+        type="buttons", showactive=False, visible=False,
+        buttons=[dict(label="", method="animate",
+                      args=[None, dict(frame=dict(duration=800, redraw=True),
+                                       fromcurrent=True, transition=dict(duration=600, easing="cubic-in-out"))])],
+    )]
     return fig
 
 
@@ -719,6 +824,7 @@ def compare_policies(task_name: str, seed: int | None) -> tuple:
         yaxis_title="Score",
         legend=dict(orientation="h", y=1.12, x=0.5, xanchor="center"),
         height=400,
+        transition=dict(duration=600, easing="cubic-in-out"),
     )
 
     # Summary table
@@ -765,6 +871,7 @@ def load_telemetry(file) -> tuple:
         xaxis_title="Step",
         yaxis_title="Reward",
         height=350,
+        transition=dict(duration=600, easing="cubic-in-out"),
     )
 
     # Extract grade if available
@@ -783,6 +890,58 @@ def load_telemetry(file) -> tuple:
 # ---------------------------------------------------------------------------
 
 CUSTOM_CSS = """
+/* Chart entry animations */
+@keyframes chartFadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes chartScaleIn {
+    from { opacity: 0; transform: scale(0.92); }
+    to   { opacity: 1; transform: scale(1); }
+}
+@keyframes gaugePopIn {
+    0%   { opacity: 0; transform: scale(0.6); }
+    60%  { opacity: 1; transform: scale(1.04); }
+    100% { opacity: 1; transform: scale(1); }
+}
+@keyframes tableSlideIn {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Apply animations to plot containers */
+.plot-container {
+    animation: chartFadeUp 0.7s ease-out both;
+}
+.plot-container:nth-child(2) { animation-delay: 0.1s; }
+.plot-container:nth-child(3) { animation-delay: 0.2s; }
+.plot-container:nth-child(4) { animation-delay: 0.3s; }
+
+/* Gauge indicators get a pop-in */
+.js-plotly-plot .indicatorplot {
+    animation: gaugePopIn 0.8s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+/* Dataframe table slide-in */
+.dataframe, .table-wrap {
+    animation: tableSlideIn 0.5s ease-out both;
+    animation-delay: 0.3s;
+}
+
+/* Summary markdown fade */
+.prose, .markdown-text {
+    animation: chartFadeUp 0.5s ease-out both;
+}
+
+/* Smooth hover lift on chart cards */
+.gr-group:has(.plot-container) {
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.gr-group:has(.plot-container):hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 201, 167, 0.08);
+}
+
 /* Global overrides — kill all purple/violet tones */
 :root {
     --body-background-fill: #0f1117 !important;
