@@ -1,7 +1,0 @@
-{
-  "tool_name": "Read",
-  "tool_input_preview": "{\"file_path\":\"/home/casp1an/Code/TradeX1/dashboard.py\"}",
-  "error": "File content (10008 tokens) exceeds maximum allowed tokens (10000). Use offset and limit parameters to read specific portions of the file, or search for specific content instead of reading the whole file.",
-  "timestamp": "2026-04-05T00:57:33.517Z",
-  "retry_count": 1
-}

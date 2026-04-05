@@ -1113,7 +1113,7 @@ if __name__ == "__main__":
         server_name="0.0.0.0",
         theme=THEME,
         css=CUSTOM_CSS,
-        share=True,
+        share=False,
         show_error=True,
     )
     server_port = _choose_launch_port()
