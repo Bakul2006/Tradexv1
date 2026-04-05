@@ -152,6 +152,8 @@ python inference.py
 - `HF_TOKEN`
 - `EVAL_MODE`
 - `DEMO_MODE`
+- `DEBUG_TELEMETRY`
+- `DEBUG_TELEMETRY_PATH`
 
 Example PowerShell setup:
 
@@ -170,6 +172,22 @@ Mode behavior:
 - `DEMO_MODE=true` is an exploratory mode for local testing only. It introduces small bounded variation into the scenario so contributors can sanity-check that the policy is not overfitting one exact replay.
 - `DEMO_MODE=true` takes precedence over `EVAL_MODE`, so it should not be used when reporting baseline scores or when preparing a competition submission.
 - Judges should evaluate the project with `EVAL_MODE=true` and `DEMO_MODE=false`.
+- `DEBUG_TELEMETRY=true` writes step-by-step JSONL telemetry to disk without changing the required `[START]`, `[STEP]`, and `[END]` stdout format.
+- `DEBUG_TELEMETRY_PATH` overrides the telemetry output path. If not set, telemetry is written under `telemetry/<task>-<timestamp>.jsonl`.
+
+Telemetry captures:
+
+- the observation seen by the policy before each action
+- the observation returned after each action
+- hidden environment labels and scenario metadata for the active step
+- AMM state transitions such as `bot_confidence`, `volatility`, and `health_index`
+- the final episode grade breakdown
+
+Example telemetry run:
+
+```bash
+DEBUG_TELEMETRY=1 DEBUG_TELEMETRY_PATH=telemetry/debug.jsonl python inference.py
+```
 
 ## Validation And Graders
 

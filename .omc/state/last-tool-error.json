@@ -1,7 +1,7 @@
 {
   "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"pkill -f \\\"python app.py\\\" 2>/dev/null; echo \\\"done\\\"\",\"description\":\"Kill background server\"}",
-  "error": "Exit code 144",
-  "timestamp": "2026-04-04T03:13:17.203Z",
+  "tool_input_preview": "{\"command\":\"python -c \\\"import plotly; print(plotly.__version__)\\\" 2>&1\",\"description\":\"Check plotly version\"}",
+  "error": "Exit code 1\nTraceback (most recent call last):\n  File \"<string>\", line 1, in <module>\n    import plotly; print(plotly.__version__)\n    ^^^^^^^^^^^^^\nModuleNotFoundError: No module named 'plotly'",
+  "timestamp": "2026-04-05T00:15:21.593Z",
   "retry_count": 1
 }
