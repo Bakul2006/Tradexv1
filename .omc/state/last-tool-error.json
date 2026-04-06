@@ -1,7 +1,0 @@
-{
-  "tool_name": "Bash",
-  "tool_input_preview": "{\"command\":\"git pull --rebase origin main\",\"description\":\"Rebase local commits on top of remote\"}",
-  "error": "Exit code 1\nFrom github.com:Frisbee148/TradeX\n * branch            main       -> FETCH_HEAD\nerror: Your local changes to the following files would be overwritten by checkout:\n\t.omc/state/hud-stdin-cache.json\nPlease commit your changes or stash them before you switch branches.\nAborting\nerror: could not detach HEAD\n[rerun: b22]",
-  "timestamp": "2026-04-06T13:41:52.968Z",
-  "retry_count": 2
-}
