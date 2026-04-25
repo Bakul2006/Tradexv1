@@ -11,7 +11,7 @@ from typing import Any, Optional
 from openai import OpenAI
 
 from meverse.env import load_repo_env
-from meverse import SurveillanceAction, list_task_names
+from meverse import SurveillanceAction
 from meverse.server.meverse_environment import MarketSurveillanceEnvironment
 
 load_repo_env()
@@ -21,6 +21,8 @@ MODEL_NAME = os.getenv("MODEL_NAME", "Qwen/Qwen2.5-7B-Instruct")
 HF_TOKEN = os.getenv("HF_TOKEN", "")
 TASK_NAME = os.getenv("MEVERSE_TASK") or os.getenv("TASK_NAME") or "full_market_surveillance"
 BENCHMARK = "amm-market-surveillance"
+TRAIN_EPISODES = 300
+TRAIN_BASE_SEED = int(os.getenv("TRAIN_BASE_SEED", "42"))
 
 
 def env_flag(name: str, default: bool) -> bool:
@@ -194,16 +196,17 @@ def select_action(observation) -> str:
     raise RuntimeError(f"LLM failed after 3 attempts: {last_err}") from last_err
 
 
-def run_task(task_name: str) -> None:
-    """Run a single task: reset, step through, grade, and log."""
+def run_task(task_name: str, seed: Optional[int] = None) -> dict[str, Any]:
+    """Run a single task episode: reset, step through, grade, and log."""
     demo_mode = env_flag("DEMO_MODE", False)
     eval_mode = False if demo_mode else env_flag("EVAL_MODE", True)
     env = MarketSurveillanceEnvironment(task=task_name, eval_mode=eval_mode, demo_mode=demo_mode)
-    observation = env.reset(task=task_name)
+    observation = env.reset(task=task_name, seed=seed)
     telemetry = DebugTelemetryWriter(enabled=env_flag("DEBUG_TELEMETRY", False), task_name=task_name)
     rewards: list[float] = []
     steps = 0
     score = 0.0
+    final_grade: Optional[dict[str, float]] = None
 
     log_start(task_name, BENCHMARK, MODEL_NAME)
     telemetry.write(
@@ -214,6 +217,7 @@ def run_task(task_name: str) -> None:
             "model": MODEL_NAME,
             "initial_observation": build_signal_snapshot(observation),
             "environment": env.debug_snapshot(),
+            "seed": seed,
         },
     )
 
@@ -240,8 +244,8 @@ def run_task(task_name: str) -> None:
                 },
             )
             log_step(step=steps, action=final_action, reward=reward, done=observation.done, error=observation.metadata.get("last_action_error"))
-        grade = env.grade()
-        score = grade["score"]
+        final_grade = env.grade()
+        score = final_grade["score"]
         success = bool(score >= 0.6)
     except KeyboardInterrupt:
         success = False
@@ -264,7 +268,7 @@ def run_task(task_name: str) -> None:
         raise
     finally:
         try:
-            final_grade = env.grade() if steps > 0 else None
+            final_grade = env.grade() if steps > 0 else final_grade
         except Exception:
             final_grade = None
         if final_grade:
@@ -280,12 +284,53 @@ def run_task(task_name: str) -> None:
             },
         )
         log_end(success=success, steps=steps, score=score, rewards=rewards)
+    return {
+        "task": task_name,
+        "seed": seed,
+        "steps": steps,
+        "score": score,
+        "grade": final_grade,
+    }
+
+
+def get_task(episode: int) -> str:
+    """Curriculum scheduler: easy -> medium -> hard (100 episodes each)."""
+    if episode < 100:
+        return "burst_detection"
+    if episode < 200:
+        return "pattern_manipulation_detection"
+    return "full_market_surveillance"
+
+
+def run_training_curriculum(total_episodes: int = TRAIN_EPISODES, base_seed: int = TRAIN_BASE_SEED) -> None:
+    """Run 300 episodes distributed evenly across task difficulty levels."""
+    task_counts = {
+        "burst_detection": 0,
+        "pattern_manipulation_detection": 0,
+        "full_market_surveillance": 0,
+    }
+    print(f"[TRAINING] total_episodes={total_episodes} base_seed={base_seed}", flush=True)
+    for episode in range(total_episodes):
+        task_name = get_task(episode)
+        seed = base_seed + episode
+        result = run_task(task_name=task_name, seed=seed)
+        task_counts[task_name] += 1
+        print(
+            f"[EPISODE] idx={episode} task={task_name} seed={seed} steps={result['steps']} score={result['score']:.4f}",
+            flush=True,
+        )
+    print(
+        "[TRAINING_SUMMARY] "
+        f"total_episodes={total_episodes} "
+        f"burst_detection={task_counts['burst_detection']} "
+        f"pattern_manipulation_detection={task_counts['pattern_manipulation_detection']} "
+        f"full_market_surveillance={task_counts['full_market_surveillance']}",
+        flush=True,
+    )
 
 
 def main() -> None:
-    all_tasks = list_task_names()
-    for task_name in all_tasks:
-        run_task(task_name)
+    run_training_curriculum(total_episodes=TRAIN_EPISODES, base_seed=TRAIN_BASE_SEED)
 
 
 if __name__ == "__main__":
