@@ -1,0 +1,62 @@
+[
+  {
+    "policy": "heuristic",
+    "task": "burst_detection",
+    "seed": 42,
+    "steps": 50,
+    "total_reward": 32.4123,
+    "mean_reward": 0.6482,
+    "remote_done": false,
+    "terminated_by": "task_max_steps"
+  },
+  {
+    "policy": "heuristic",
+    "task": "pattern_manipulation_detection",
+    "seed": 42,
+    "steps": 50,
+    "total_reward": 28.2693,
+    "mean_reward": 0.5654,
+    "remote_done": false,
+    "terminated_by": "task_max_steps"
+  },
+  {
+    "policy": "heuristic",
+    "task": "full_market_surveillance",
+    "seed": 42,
+    "steps": 60,
+    "total_reward": 37.112,
+    "mean_reward": 0.6185,
+    "remote_done": false,
+    "terminated_by": "task_max_steps"
+  },
+  {
+    "policy": "random",
+    "task": "burst_detection",
+    "seed": 42,
+    "steps": 50,
+    "total_reward": 24.3205,
+    "mean_reward": 0.4864,
+    "remote_done": false,
+    "terminated_by": "task_max_steps"
+  },
+  {
+    "policy": "random",
+    "task": "pattern_manipulation_detection",
+    "seed": 42,
+    "steps": 50,
+    "total_reward": 24.985,
+    "mean_reward": 0.4997,
+    "remote_done": false,
+    "terminated_by": "task_max_steps"
+  },
+  {
+    "policy": "random",
+    "task": "full_market_surveillance",
+    "seed": 42,
+    "steps": 60,
+    "total_reward": 27.6853,
+    "mean_reward": 0.4614,
+    "remote_done": false,
+    "terminated_by": "task_max_steps"
+  }
+]

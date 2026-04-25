@@ -1,0 +1,181 @@
+Your Task A — TRL/GRPO Colab Notebook
+This is the highest priority item. Judges specifically require Unsloth or HF TRL.
+
+What it needs to do
+Connect to the meverse environment (via HTTP to the HF Space or locally via Docker)
+Collect episode trajectories — observations, actions, rewards per step
+Use GRPO (Group Relative Policy Optimization) in HF TRL to fine-tune a small LLM
+Show reward going up across training steps
+Compare: untrained baseline score vs fine-tuned score
+Recommended model
+Qwen/Qwen2.5-0.5B-Instruct — small enough to train on free Colab T4, strong enough to follow instructions.
+
+Alternatively: unsloth/Qwen2.5-0.5B-Instruct for faster loading with Unsloth.
+
+How the environment is called (HTTP client)
+The environment exposes a REST API. Here's how to interact with it:
+
+import requests
+import json
+
+BASE_URL = "https://casp1an-tradex.hf.space"
+
+# Reset environment for a task
+def env_reset(task_name, seed=42):
+    resp = requests.post(f"{BASE_URL}/reset", json={
+        "task": task_name,
+        "seed": seed
+    })
+    return resp.json()  # returns observation dict
+
+# Step with an action
+def env_step(action_str):
+    action = str(action_str).strip().upper()
+    resp = requests.post(f"{BASE_URL}/step", json={
+        "action": {"action_type": action}  # "ALLOW", "FLAG", "BLOCK", or "MONITOR"
+    })
+    return resp.json()  # returns {observation, reward, done, info}
+
+# Get current state
+def env_state():
+    resp = requests.get(f"{BASE_URL}/state")
+    return resp.json()
+GRPO Training Loop Skeleton
+from trl import GRPOTrainer, GRPOConfig
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+MODEL_NAME = "Qwen/Qwen2.5-0.5B-Instruct"
+TASKS = ["burst_detection", "pattern_manipulation_detection", "full_market_surveillance"]
+
+# System prompt for the LLM agent
+SYSTEM_PROMPT = """You are a market surveillance controller monitoring an AMM trading pool.
+You will receive market observations and must classify each trading window.
+
+Choose exactly one action:
+- ALLOW: normal activity, safe to proceed
+- FLAG: suspicious, mark for review  
+- BLOCK: confirmed threat, stop immediately
+- MONITOR: uncertain, watch closely
+
+High burst_indicator (>0.7) + high suspiciousness_score (>0.6) = likely BLOCK
+High pattern_indicator (>0.7) = likely FLAG or BLOCK
+Low all indicators (<0.3) = ALLOW
+Uncertain signals = MONITOR
+
+Respond with JSON only: {"action": "ALLOW"}"""
+
+def observation_to_prompt(obs):
+    return f"""Market observation:
+- Burst indicator: {obs['burst_indicator']:.3f}
+- Pattern indicator: {obs['pattern_indicator']:.3f}  
+- Suspiciousness score: {obs['suspiciousness_score']:.3f}
+- Manipulation score: {obs['manipulation_score']:.3f}
+- Trade frequency: {obs['trade_frequency']:.2f}
+- Average trade size: {obs['average_trade_size']:.2f}
+- Time gap min: {obs['time_gap_min']:.3f}
+- Step: {obs['step_num']}/{obs['max_steps']}
+- Task: {obs['task_name']}
+
+What is your surveillance decision?"""
+
+def collect_episode_trajectory(task_name, seed=42):
+    """Run one episode and collect (prompt, action, reward) tuples for GRPO."""
+    obs_data = env_reset(task_name, seed=seed)
+    obs = obs_data["observation"]
+    
+    trajectory = []
+    done = False
+    total_reward = 0.0
+    
+    while not done:
+        prompt = observation_to_prompt(obs)
+        trajectory.append({"prompt": prompt, "obs": obs})
+        
+        # For training: LLM will generate action during GRPO
+        # For baseline: use heuristic
+        result = env_step("ALLOW")  # placeholder, GRPO replaces this
+        obs = result["observation"]
+        reward = result["reward"]
+        done = result["done"]
+        total_reward += reward
+        
+    return trajectory, total_reward
+
+# GRPO reward function — this is what GRPO optimizes
+def compute_grpo_reward(generated_action_str, obs):
+    """
+    Parse LLM output, call env.step(), return reward.
+    This function is called by GRPOTrainer for each generated sample.
+    """
+    import json, re
+    
+    # Parse action from LLM output
+    try:
+        match = re.search(r'\{[^}]+\}', generated_action_str)
+        if match:
+            parsed = json.loads(match.group())
+            action = parsed.get("action", "ALLOW")
+            if action not in ["ALLOW", "FLAG", "BLOCK", "MONITOR"]:
+                action = "ALLOW"
+        else:
+            action = "ALLOW"
+    except:
+        action = "ALLOW"
+    
+    result = env_step(action)
+    return result["reward"]
+What to save and commit
+After training runs, make sure these files are saved and committed to the repo:
+
+plots/
+  reward_vs_training_step.png    ← x=training step, y=mean episode reward
+  baseline_vs_trained.png        ← side-by-side score comparison
+  task_scores_comparison.png     ← scores per task before/after
+models/
+  tradex_finetuned/              ← save fine-tuned model here (optional, large)
+Generate plots like this:
+
+import matplotlib.pyplot as plt
+
+def save_training_plots(reward_history, baseline_scores, trained_scores):
+    # Plot 1: Reward curve
+    plt.figure(figsize=(10, 5))
+    plt.plot(reward_history, alpha=0.4, color="#1f77b4", label="Episode Reward")
+    # rolling average
+    import numpy as np
+    if len(reward_history) >= 20:
+        rolling = np.convolve(reward_history, np.ones(20)/20, mode='valid')
+        plt.plot(range(19, len(reward_history)), rolling, color="#17becf", 
+                 linewidth=2, label="Rolling Avg (20ep)")
+    plt.xlabel("Training Episode")
+    plt.ylabel("Episode Reward (normalized 0-1)")
+    plt.title("MEVerse LLM Agent — Reward During GRPO Training")
+    plt.legend()
+    plt.grid(True, alpha=0.3)
+    plt.tight_layout()
+    plt.savefig("plots/reward_vs_training_step.png", dpi=150)
+    plt.close()
+    
+    # Plot 2: Baseline vs Trained comparison
+    tasks = ["burst_detection", "pattern_manipulation\ndetection", "full_market\nsurveillance"]
+    x = np.arange(len(tasks))
+    width = 0.35
+    
+    plt.figure(figsize=(10, 5))
+    plt.bar(x - width/2, baseline_scores, width, label="Baseline (no training)", 
+            color="#ff7f0e", alpha=0.8)
+    plt.bar(x + width/2, trained_scores, width, label="After GRPO Training",
+            color="#2ca02c", alpha=0.8)
+    plt.xlabel("Task")
+    plt.ylabel("Score (0.0 - 1.0)")
+    plt.title("MEVerse — Baseline vs Fine-tuned LLM Agent")
+    plt.xticks(x, tasks)
+    plt.ylim(0, 1.0)
+    plt.legend()
+    plt.grid(True, alpha=0.3, axis='y')
+    plt.tight_layout()
+    plt.savefig("plots/baseline_vs_trained.png", dpi=150)
+    plt.close()
+    
+    print("Plots saved to plots/")

@@ -1,0 +1,7 @@
+{
+  "model_id": "sshleifer/tiny-gpt2",
+  "training_time_hours": 0.00015527777777777778,
+  "final_loss": 3.2303853458870435e-06,
+  "dataset_size": 6,
+  "mean_test_reward": 0.0
+}
