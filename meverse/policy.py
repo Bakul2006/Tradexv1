@@ -57,8 +57,8 @@ def llm_action(client: OpenAI, observation: SurveillanceObservation, model_name:
         "recent_slippage_impact": observation.recent_slippage_impact,
         "time_gap_mean": observation.time_gap_mean,
         "time_gap_min": observation.time_gap_min,
-        "burst_indicator": observation.burst_indicator,
-        "pattern_indicator": observation.pattern_indicator,
+        "recent_time_gaps": observation.recent_time_gaps,
+        "recent_price_impacts": observation.recent_price_impacts,
         "suspiciousness_score": observation.suspiciousness_score,
         "manipulation_score": observation.manipulation_score,
     }

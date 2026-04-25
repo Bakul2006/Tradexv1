@@ -113,7 +113,7 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
             self._last_action_error = None
 
         step_data = self._current_step_data
-        reward = self._reward_for_action(action_type, step_data)
+        reward = self._reward_for_action(action_type, step_data, self._step_num, self._task.num_steps)
 
         self._actions.append(action_type)
         self._labels.append(step_data.label)
@@ -182,14 +182,25 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
             "current_step": current_step,
         }
 
-    def _reward_for_action(self, action_type: str, step_data) -> float:
+    def _reward_for_action(self, action_type: str, step_data, step_num: int, max_steps: int) -> float:
         severity = step_data.severity
         health = step_data.healthy_market_index
         if step_data.label == "suspicious":
+            # Early-detection bonus: linearly decays from full at step 0 to 0 at the
+            # final step. Applies only to BLOCK and FLAG on suspicious activity.
+            # Drives the temporal credit-assignment tradeoff between acting early
+            # and gathering more evidence.
+            denom = max(1, max_steps - 1)
+            time_progress = min(1.0, max(0.0, step_num / denom))
+            early_factor = 1.0 - time_progress
             if action_type == "BLOCK":
-                return round(min(1.0, 0.88 + 0.12 * severity), 4)
+                base = 0.88 + 0.12 * severity
+                bonus = 0.20 * early_factor
+                return round(min(1.0, base + bonus), 4)
             if action_type == "FLAG":
-                return round(min(1.0, 0.68 + 0.18 * severity), 4)
+                base = 0.68 + 0.18 * severity
+                bonus = 0.15 * early_factor
+                return round(min(1.0, base + bonus), 4)
             if action_type == "MONITOR":
                 return round(min(1.0, 0.42 + 0.16 * severity), 4)
             return round(max(0.0, 0.06 * (1.0 - severity)), 4)
@@ -222,8 +233,6 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
             time_gap_min=round(min_gap, 4),
             recent_time_gaps=step_data.recent_time_gaps,
             recent_price_impacts=step_data.recent_price_impacts,
-            burst_indicator=step_data.burst_indicator,
-            pattern_indicator=step_data.pattern_indicator,
             suspiciousness_score=step_data.suspiciousness_score,
             manipulation_score=step_data.manipulation_score,
             step_num=self._step_num,
@@ -243,6 +252,11 @@ class MarketSurveillanceEnvironment(Environment[SurveillanceAction, Surveillance
                 "amm_price": round(self._amm.price, 4),
                 "amm_liquidity": round(self._amm.liquidity, 4),
                 "bot_confidence": round(self._amm.bot_confidence, 4),
+                # Internal telemetry — not exposed as first-class observation
+                # fields. Kept here for dashboard visualisation, debugging,
+                # and downstream tooling. Agents must not consume these.
+                "burst_indicator": step_data.burst_indicator,
+                "pattern_indicator": step_data.pattern_indicator,
             },
         )
         return self._apply_transform(observation)

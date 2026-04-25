@@ -52,8 +52,6 @@ class SurveillanceObservation(Observation):
     time_gap_min: float = Field(default=0.0)
     recent_time_gaps: List[float] = Field(default_factory=list)
     recent_price_impacts: List[float] = Field(default_factory=list)
-    burst_indicator: float = Field(default=0.0)
-    pattern_indicator: float = Field(default=0.0)
     suspiciousness_score: float = Field(default=0.0)
     manipulation_score: float = Field(default=0.0)
     step_num: int = Field(default=0)

@@ -100,9 +100,10 @@ class EpisodeState:
 
 
 def _build_signal_row(obs) -> list[float]:
+    meta = obs.metadata or {}
     return [
-        obs.burst_indicator,
-        obs.pattern_indicator,
+        float(meta.get("burst_indicator") or 0.0),
+        float(meta.get("pattern_indicator") or 0.0),
         obs.suspiciousness_score,
         obs.manipulation_score,
         obs.trade_frequency / 10.0,  # normalized
@@ -222,13 +223,14 @@ def run_full_episode(task_name: str, policy: str, seed: int | None) -> tuple:
         if not obs.done:
             state.signal_matrix.append(_build_signal_row(obs))
 
+        meta = obs.metadata or {}
         state.step_history.append({
             "step": step_count,
             "action": action,
             "label": label,
             "reward": reward,
-            "burst": obs.burst_indicator,
-            "pattern": obs.pattern_indicator,
+            "burst": float(meta.get("burst_indicator") or 0.0),
+            "pattern": float(meta.get("pattern_indicator") or 0.0),
             "suspicion": obs.suspiciousness_score,
             "manipulation": obs.manipulation_score,
         })

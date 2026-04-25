@@ -43,19 +43,24 @@ def apply_trade(state: AMMState, dx: float) -> float:
 
 
 def apply_action_effects(state: AMMState, action: str, was_suspicious: bool) -> None:
-    """Update AMM state based on the surveillance action taken."""
+    """Update AMM state based on the surveillance action taken.
+
+    Bot-confidence deltas are intentionally small. A single BLOCK should not
+    pacify the bot for the rest of the episode; the bot must remain meaningfully
+    active so the agent earns its score step by step.
+    """
     if was_suspicious:
         if action == "BLOCK":
-            state.bot_confidence = max(0.0, state.bot_confidence - 0.25)
-            state.volatility = max(0.01, state.volatility * 0.85)
+            state.bot_confidence = max(0.05, state.bot_confidence - 0.06)
+            state.volatility = max(0.01, state.volatility * 0.94)
         elif action == "FLAG":
-            state.bot_confidence = max(0.0, state.bot_confidence - 0.10)
-            state.volatility = max(0.01, state.volatility * 0.92)
+            state.bot_confidence = max(0.05, state.bot_confidence - 0.03)
+            state.volatility = max(0.01, state.volatility * 0.97)
         elif action == "MONITOR":
-            state.bot_confidence = min(1.0, state.bot_confidence + 0.03)
+            state.bot_confidence = min(1.0, state.bot_confidence + 0.015)
         else:  # ALLOW
-            state.bot_confidence = min(1.0, state.bot_confidence + 0.15)
-            state.volatility = min(0.5, state.volatility * 1.12)
+            state.bot_confidence = min(1.0, state.bot_confidence + 0.04)
+            state.volatility = min(0.5, state.volatility * 1.05)
     else:
         if action == "ALLOW":
             state.health_index = min(1.0, state.health_index + 0.03)

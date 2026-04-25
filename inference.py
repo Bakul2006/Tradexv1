@@ -63,8 +63,6 @@ def build_signal_snapshot(observation) -> dict[str, Any]:
         "time_gap_min": observation.time_gap_min,
         "recent_time_gaps": observation.recent_time_gaps,
         "recent_price_impacts": observation.recent_price_impacts,
-        "burst_indicator": observation.burst_indicator,
-        "pattern_indicator": observation.pattern_indicator,
         "suspiciousness_score": observation.suspiciousness_score,
         "manipulation_score": observation.manipulation_score,
         "metadata": {
@@ -77,6 +75,10 @@ def build_signal_snapshot(observation) -> dict[str, Any]:
             "amm_liquidity": observation.metadata.get("amm_liquidity"),
             "bot_confidence": observation.metadata.get("bot_confidence"),
             "last_action_error": observation.metadata.get("last_action_error"),
+            # Internal hint scores kept on metadata only — not part of the
+            # agent-facing observation but preserved for telemetry/debug.
+            "burst_indicator": observation.metadata.get("burst_indicator"),
+            "pattern_indicator": observation.metadata.get("pattern_indicator"),
         },
     }
 
@@ -128,8 +130,8 @@ def llm_action(client: OpenAI, observation) -> str:
         "recent_slippage_impact": observation.recent_slippage_impact,
         "time_gap_mean": observation.time_gap_mean,
         "time_gap_min": observation.time_gap_min,
-        "burst_indicator": observation.burst_indicator,
-        "pattern_indicator": observation.pattern_indicator,
+        "recent_time_gaps": observation.recent_time_gaps,
+        "recent_price_impacts": observation.recent_price_impacts,
         "suspiciousness_score": observation.suspiciousness_score,
         "manipulation_score": observation.manipulation_score,
     }
@@ -145,13 +147,18 @@ def llm_action(client: OpenAI, observation) -> str:
                     "Your job: detect suspicious bot-like activity and respond decisively, "
                     "but NEVER penalize normal healthy trading.\n"
                     "Actions: ALLOW, FLAG, BLOCK, MONITOR.\n"
+                    "Reason from raw signals: trades_in_window, recent_time_gaps, "
+                    "time_gap_min, trade_frequency, recent_price_impacts, "
+                    "suspiciousness_score, manipulation_score.\n"
+                    "Acting earlier when truly suspicious is rewarded more than acting late, "
+                    "but acting on noise is penalized — balance speed against evidence.\n"
                     "Rules (apply in order, stop at first match):\n"
                     "1. manipulation_score >= 0.55 → BLOCK\n"
                     "2. trade_frequency >= 7.0 AND time_gap_min < 0.5 → BLOCK\n"
-                    "3. burst_indicator >= 0.50 AND suspiciousness_score >= 0.45 → BLOCK\n"
-                    "4. suspiciousness_score >= 0.50 AND pattern_indicator >= 0.35 → FLAG\n"
+                    "3. suspiciousness_score >= 0.55 AND any recent_price_impacts > 0.03 → BLOCK\n"
+                    "4. suspiciousness_score >= 0.45 AND time_gap_min < 0.8 → FLAG\n"
                     "5. trade_frequency >= 5.0 AND average_trade_size > 18 → FLAG\n"
-                    "6. burst_indicator >= 0.35 OR suspiciousness_score >= 0.40 → MONITOR\n"
+                    "6. suspiciousness_score >= 0.35 → MONITOR\n"
                     "7. Otherwise → ALLOW\n"
                     "Return JSON only: {\"action\": \"ALLOW\"}"
                 ),

@@ -32,8 +32,6 @@ class MeverseEnv(EnvClient[SurveillanceAction, SurveillanceObservation, State]):
             time_gap_min=obs_data.get("time_gap_min", 0.0),
             recent_time_gaps=obs_data.get("recent_time_gaps", []),
             recent_price_impacts=obs_data.get("recent_price_impacts", []),
-            burst_indicator=obs_data.get("burst_indicator", 0.0),
-            pattern_indicator=obs_data.get("pattern_indicator", 0.0),
             suspiciousness_score=obs_data.get("suspiciousness_score", 0.0),
             manipulation_score=obs_data.get("manipulation_score", 0.0),
             step_num=obs_data.get("step_num", 0),
